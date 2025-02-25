@@ -82,8 +82,7 @@ class BibTeXPlugin(BasePlugin):
 
         # load bibliography data
         refs = {}
-        log.info("BibTeXPlugin: loading data from bib files")
-        # log.info(f"Loading data from bib files: {bibfiles}")
+        # log.info(f"BibTeXPlugin: loading data from bib files: {bibfiles}")
         for bibfile in bibfiles:
             log.debug(f"Parsing bibtex file {bibfile}")
             bibdata = parse_file(bibfile)
@@ -95,7 +94,7 @@ class BibTeXPlugin(BasePlugin):
                 Path(bibfile).stat().st_mtime < self.last_configured
                 for bibfile in bibfiles
             ):
-                log.info("BibTeXPlugin: no changes in bibfiles")
+                # log.info("BibTeXPlugin: no changes in bibfiles")
                 return config
 
         # Clear references on reconfig
