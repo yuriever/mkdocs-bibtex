@@ -181,7 +181,7 @@ def extract_cite_keys(cite_block):
 
 
 def find_cite_blocks(markdown):
-    """
+    r"""
     Finds entire cite blocks in the markdown text
 
     Args:
