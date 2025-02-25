@@ -55,7 +55,7 @@ class BibTexPlugin(BasePlugin):
         self.configured = False
 
     def on_startup(self, *, command, dirty):
-        """ Having on_startup() tells mkdocs to keep the plugin object upon rebuilds"""
+        """Having on_startup() tells mkdocs to keep the plugin object upon rebuilds"""
         pass
 
     def on_config(self, config):
@@ -70,7 +70,9 @@ class BibTexPlugin(BasePlugin):
             is_url = validators.url(self.config["bib_file"])
             # if bib_file is a valid URL, cache it with tempfile
             if is_url:
-                bibfiles.append(tempfile_from_url("bib file", self.config["bib_file"], ".bib"))
+                bibfiles.append(
+                    tempfile_from_url("bib file", self.config["bib_file"], ".bib")
+                )
             else:
                 bibfiles.append(self.config["bib_file"])
         elif self.config.get("bib_dir", None) is not None:
@@ -80,15 +82,19 @@ class BibTexPlugin(BasePlugin):
 
         # load bibliography data
         refs = {}
-        log.info(f"Loading data from bib files: {bibfiles}")
+        # log.info(f"mkdocs-bibtex: loading data from bib files: {bibfiles}")
+        log.info("mkdocs-bibtex: loading data from bib files")
         for bibfile in bibfiles:
             log.debug(f"Parsing bibtex file {bibfile}")
             bibdata = parse_file(bibfile)
             refs.update(bibdata.entries)
 
-        if hasattr(self,"last_configured"):
+        if hasattr(self, "last_configured"):
             # Skip rebuilding bib data if all files are older than the initial config
-            if all(Path(bibfile).stat().st_mtime < self.last_configured for bibfile in bibfiles):
+            if all(
+                Path(bibfile).stat().st_mtime < self.last_configured
+                for bibfile in bibfiles
+            ):
                 log.info("BibTexPlugin: No changes in bibfiles.")
                 return config
 
@@ -101,7 +107,9 @@ class BibTexPlugin(BasePlugin):
         # Set CSL from either url or path (or empty)
         is_url = validators.url(self.config["csl_file"])
         if is_url:
-            self.csl_file = tempfile_from_url("CSL file", self.config["csl_file"], ".csl")
+            self.csl_file = tempfile_from_url(
+                "CSL file", self.config["csl_file"], ".csl"
+            )
         else:
             self.csl_file = self.config.get("csl_file", None)
 
@@ -131,7 +139,7 @@ class BibTexPlugin(BasePlugin):
             citation for individual cite key)
         3. Insert formatted cite keys into text
         4. Insert the bibliography into the markdown
-        5. Insert the full bibliograph into the markdown
+        5. Insert the full bibliography into the markdown
         """
 
         # 1. Grab all the cited keys in the markdown
@@ -152,7 +160,7 @@ class BibTexPlugin(BasePlugin):
         else:
             markdown = insert_citation_keys(citation_quads, markdown)
 
-        # 4. Insert in the bibliopgrahy text into the markdown
+        # 4. Insert in the bibliography text into the markdown
         bib_command = self.config.get("bib_command", "\\bibliography")
 
         if self.config.get("bib_by_default"):
@@ -196,7 +204,7 @@ class BibTexPlugin(BasePlugin):
             cite_keys (list): List of full cite_keys that maybe compound keys
 
         Returns:
-            citation_quads: quad tuples of the citation inforamtion
+            citation_quads: quad tuples of the citation information
         """
 
         # Deal with arithmatex fix at some point

@@ -21,9 +21,10 @@ log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
 
 # Add the warning filter only if the version is lower than 1.2
 # Filter doesn't do anything since that version
-MKDOCS_LOG_VERSION = '1.2'
+MKDOCS_LOG_VERSION = "1.2"
 if Version(mkdocs.__version__) < Version(MKDOCS_LOG_VERSION):
     from mkdocs.utils import warning_filter
+
     log.addFilter(warning_filter)
 
 
@@ -69,12 +70,16 @@ def format_pandoc(entries, csl_path):
     msg = "pandoc>=2.11" if is_new_pandoc else "pandoc<2.11"
     for key, entry in entries.items():
         bibtex_string = BibliographyData(entries={entry.key: entry}).to_string("bibtex")
-        log.debug(f"--Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}")
+        log.debug(
+            f"--Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}"
+        )
         if is_new_pandoc:
             citations[key] = _convert_pandoc_new(bibtex_string, csl_path)
         else:
             citations[key] = _convert_pandoc_legacy(bibtex_string, csl_path)
-        log.debug(f"--SUCCESS Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}")
+        log.debug(
+            f"--SUCCESS Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}"
+        )
 
     return citations
 
@@ -115,7 +120,7 @@ def _convert_pandoc_citekey(bibtex_string, csl_path, fullcite):
     Uses pandoc to convert a markdown citation key reference
     to a rendered markdown citation in the given CSL format.
 
-        Limitation (atleast for harvard.csl): multiple citekeys
+        Limitation (at least for harvard.csl): multiple citekeys
         REQUIRE a '; ' separator to render correctly:
             - [see @test; @test2] Works
             - [see @test and @test2] Doesn't work
@@ -125,16 +130,20 @@ def _convert_pandoc_citekey(bibtex_string, csl_path, fullcite):
         with open(bib_path, "wt", encoding="utf-8") as bibfile:
             bibfile.write(bibtex_string)
 
-        log.debug(f"----Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and Bibliography file"
-                  f" '{bib_path!s}'...")
+        log.debug(
+            f"----Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and Bibliography file"
+            f" '{bib_path!s}'..."
+        )
         markdown = pypandoc.convert_text(
             source=fullcite,
             to="markdown-citations",
             format="markdown",
             extra_args=["--citeproc", "--csl", csl_path, "--bibliography", bib_path],
         )
-        log.debug(f"----SUCCESS Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and "
-                  f"Bibliography file '{bib_path!s}'")
+        log.debug(
+            f"----SUCCESS Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and "
+            f"Bibliography file '{bib_path!s}'"
+        )
 
     # Return only the citation text (first line(s))
     # remove any extra linebreaks to accommodate large author names
@@ -241,9 +250,9 @@ def insert_citation_keys(citation_quads, markdown, csl=False, bib=False):
     grouped_quads = [list(g) for _, g in groupby(citation_quads, key=lambda x: x[0])]
     for quad_group in grouped_quads:
         full_citation = quad_group[0][0]  # the full citation block
-        replacement_citaton = "".join(["[^{}]".format(quad[2]) for quad in quad_group])
+        replacement_citation = "".join(["[^{}]".format(quad[2]) for quad in quad_group])
 
-        # if cite_inline is true, convert full_citation with pandoc and add to replacement_citaton
+        # if cite_inline is true, convert full_citation with pandoc and add to replacement_citation
         if csl and bib:
             log.debug(f"--Rendering citation inline for {full_citation!r}...")
             # Verify that the pandoc installation is newer than 2.11
@@ -256,14 +265,14 @@ def insert_citation_keys(citation_quads, markdown, csl=False, bib=False):
                 )
 
             inline_citation = _convert_pandoc_citekey(bib, csl, full_citation)
-            replacement_citaton = f" {inline_citation}{replacement_citaton}"
+            replacement_citation = f" {inline_citation}{replacement_citation}"
 
             # Make sure inline citations doesn't get an extra whitespace by
             # replacing it with whitespace added first
-            markdown = markdown.replace(f" {full_citation}", replacement_citaton)
+            markdown = markdown.replace(f" {full_citation}", replacement_citation)
             log.debug(f"--SUCCESS Rendering citation inline for {full_citation!r}")
 
-        markdown = markdown.replace(full_citation, replacement_citaton)
+        markdown = markdown.replace(full_citation, replacement_citation)
 
     log.debug("SUCCESS Replacing citation keys with the generated ones")
 
@@ -301,7 +310,9 @@ def tempfile_from_url(name, url, suffix):
                     f"Couldn't download the url: {url}.\n Status Code: {dl.status_code}"
                 )
 
-            file = tempfile.NamedTemporaryFile(mode="wt", encoding="utf-8", suffix=suffix, delete=False)
+            file = tempfile.NamedTemporaryFile(
+                mode="wt", encoding="utf-8", suffix=suffix, delete=False
+            )
             file.write(dl.text)
             file.close()
             log.info(f"{name} downladed from URL {url} to temporary file ({file})")
@@ -341,7 +352,9 @@ def tempfile_from_zotero_url(name: str, url: str, suffix: str) -> str:
             break
     else:
         log.debug(f"Exceeded the maximum number of pages. Found: {page_num} pages")
-    with tempfile.NamedTemporaryFile(mode="wt", encoding="utf-8", suffix=suffix, delete=False) as file:
+    with tempfile.NamedTemporaryFile(
+        mode="wt", encoding="utf-8", suffix=suffix, delete=False
+    ) as file:
         file.write(bib_contents)
     log.info(f"{name} downloaded from URL {url} to temporary file ({file})")
     return file.name
