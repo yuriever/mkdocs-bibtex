@@ -6,7 +6,7 @@ import string
 import pytest
 import responses
 
-from mkdocs_bibtex.plugin import BibTexPlugin
+from mkdocs_bibtex.plugin import BibTeXPlugin
 
 module_dir = os.path.dirname(os.path.abspath(__file__))
 test_files_dir = os.path.abspath(os.path.join(module_dir, "..", "test_files"))
@@ -41,7 +41,7 @@ def mock_zotero_api(request: pytest.FixtureRequest) -> collections.abc.Generator
 
 @pytest.fixture
 def plugin():
-    plugin = BibTexPlugin()
+    plugin = BibTeXPlugin()
     plugin.load_config(
         options={"bib_file": os.path.join(test_files_dir, "test.bib")},
         config_file_path=test_files_dir,
@@ -56,7 +56,7 @@ def test_bibtex_loading_bibfile(plugin):
 
 
 def test_bibtex_loading_bib_url():
-    plugin = BibTexPlugin()
+    plugin = BibTeXPlugin()
     plugin.load_config(
         options={
             "bib_file": "https://raw.githubusercontent.com/shyamd/mkdocs-bibtex/main/test_files/test.bib"
@@ -69,7 +69,7 @@ def test_bibtex_loading_bib_url():
 
 
 def test_bibtex_loading_bibdir():
-    plugin = BibTexPlugin()
+    plugin = BibTeXPlugin()
     plugin.load_config(
         options={"bib_dir": os.path.join(test_files_dir, "multi_bib")},
         config_file_path=test_files_dir,
@@ -81,7 +81,7 @@ def test_bibtex_loading_bibdir():
 
 @pytest.mark.parametrize(("mock_zotero_api", "number_of_entries"), ((4, 4), (150, 150)), indirect=["mock_zotero_api"])
 def test_bibtex_loading_zotero(mock_zotero_api: responses.RequestsMock, number_of_entries: int) -> None:
-    plugin = BibTexPlugin()
+    plugin = BibTeXPlugin()
     plugin.load_config(
         options={"bib_file": MOCK_ZOTERO_URL},
         config_file_path=test_files_dir,
@@ -140,7 +140,7 @@ def test_footnote_formatting_config(plugin):
     This function tests to ensure footnote formatting configuration is working properly
     """
     # Test to make sure the config enforces {number} in the format
-    bad_plugin = BibTexPlugin()
+    bad_plugin = BibTeXPlugin()
     bad_plugin.load_config(
         options={"footnote_format": ""},
         config_file_path=test_files_dir,

@@ -8,7 +8,7 @@ import os
 import pytest
 import pypandoc
 
-from mkdocs_bibtex.plugin import BibTexPlugin
+from mkdocs_bibtex.plugin import BibTeXPlugin
 
 from mkdocs_bibtex.utils import (
     find_cite_blocks,
@@ -23,9 +23,9 @@ test_files_dir = os.path.abspath(os.path.join(module_dir, "..", "test_files"))
 @pytest.fixture
 def plugin():
     """
-    Basic BibTex Plugin without CSL
+    Basic BibTeX Plugin without CSL
     """
-    plugin = BibTexPlugin()
+    plugin = BibTeXPlugin()
     plugin.load_config(
         options={"bib_file": os.path.join(test_files_dir, "test.bib")},
         config_file_path=test_files_dir,

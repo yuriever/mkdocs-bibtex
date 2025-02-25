@@ -1,5 +1,5 @@
 import sys
-from mkdocs_bibtex.plugin import BibTexPlugin
+from mkdocs_bibtex.plugin import BibTeXPlugin
 
 if sys.version_info[:2] >= (3, 8):
     from importlib import metadata

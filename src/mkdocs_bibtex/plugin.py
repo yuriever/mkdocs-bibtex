@@ -20,7 +20,7 @@ from mkdocs_bibtex.utils import (
 )
 
 
-class BibTexPlugin(BasePlugin):
+class BibTeXPlugin(BasePlugin):
     """
     Allows the use of bibtex in markdown content for MKDocs.
 
@@ -82,7 +82,7 @@ class BibTexPlugin(BasePlugin):
 
         # load bibliography data
         refs = {}
-        log.info("Loading data from bib files")
+        log.info("BibTeXPlugin: loading data from bib files")
         # log.info(f"Loading data from bib files: {bibfiles}")
         for bibfile in bibfiles:
             log.debug(f"Parsing bibtex file {bibfile}")
@@ -95,7 +95,7 @@ class BibTexPlugin(BasePlugin):
                 Path(bibfile).stat().st_mtime < self.last_configured
                 for bibfile in bibfiles
             ):
-                log.info("BibTexPlugin: No changes in bibfiles.")
+                log.info("BibTeXPlugin: no changes in bibfiles")
                 return config
 
         # Clear references on reconfig

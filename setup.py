@@ -7,7 +7,7 @@ setup(
     name="mkdocs-bibtex",
     use_scm_version=True,
     setup_requires=["setuptools_scm"],
-    description="An MkDocs plugin that enables managing citations with BibTex",
+    description="An MkDocs plugin that enables managing citations with BibTeX",
     long_description=long_description,
     long_description_content_type="text/markdown",
     keywords="mkdocs python markdown bibtex",
@@ -30,5 +30,5 @@ setup(
     tests_require=["pytest"],
     packages=find_packages("src"),
     package_dir={"": "src"},
-    entry_points={"mkdocs.plugins": ["bibtex = mkdocs_bibtex.plugin:BibTexPlugin"]},
+    entry_points={"mkdocs.plugins": ["bibtex = mkdocs_bibtex.plugin:BibTeXPlugin"]},
 )
