@@ -82,8 +82,8 @@ class BibTexPlugin(BasePlugin):
 
         # load bibliography data
         refs = {}
-        # log.info(f"mkdocs-bibtex: loading data from bib files: {bibfiles}")
-        log.info("mkdocs-bibtex: loading data from bib files")
+        log.info("Loading data from bib files")
+        # log.info(f"Loading data from bib files: {bibfiles}")
         for bibfile in bibfiles:
             log.debug(f"Parsing bibtex file {bibfile}")
             bibdata = parse_file(bibfile)
