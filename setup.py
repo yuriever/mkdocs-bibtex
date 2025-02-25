@@ -18,11 +18,14 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "mkdocs>=1",
-        "pybtex>=0.22",
+        "pybtex>=0.24",
         "pypandoc>=1.5",
         "requests>=2.8.1",
         "validators>=0.19.0",
         "setuptools>=68.0.0"
+    ],
+    dependency_links=[
+        'https://github.com/yuriever/pybtex',
     ],
     tests_require=["pytest"],
     packages=find_packages("src"),
