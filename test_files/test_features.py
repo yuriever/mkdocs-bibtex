@@ -221,7 +221,7 @@ def test_basic_pandoc(plugin):
     ) == plugin.format_citations(["[@test_citavi]"])[0]
 
 
-def test_inline_ciations(plugin_advanced_pandoc):
+def test_inline_citations(plugin_advanced_pandoc):
     plugin = plugin_advanced_pandoc
 
     # Ensure inline citation works
@@ -233,7 +233,7 @@ def test_inline_ciations(plugin_advanced_pandoc):
     )
 
 
-def test_supressed_authors(plugin_advanced_pandoc):
+def test_suppressed_authors(plugin_advanced_pandoc):
     plugin = plugin_advanced_pandoc
 
     # Ensure suppressed authors works
@@ -289,7 +289,7 @@ def test_citavi_format(plugin_advanced_pandoc):
 
 def test_duplicate_reference(plugin_advanced_pandoc):
     """
-    Ensures duplicats references show up appropriately
+    Ensures duplicates references show up appropriately
     # TODO: These test cases don't seem right
     """
     plugin = plugin_advanced_pandoc

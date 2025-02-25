@@ -92,7 +92,7 @@ def test_bibtex_loading_zotero(mock_zotero_api: responses.RequestsMock, number_o
 
 def test_on_page_markdown(plugin):
     """
-    This function just tests to make sure the rendered markdown changees with
+    This function just tests to make sure the rendered markdown changes with
     options and basic functionality works.  It doesn't test "features"
     """
     # run test with bib_by_default set to False
