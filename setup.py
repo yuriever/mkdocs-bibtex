@@ -19,7 +19,6 @@ setup(
     install_requires=[
         "mkdocs>=1",
         "pybtex>=0.24",
-        "pypandoc>=1.5",
         "requests>=2.8.1",
         "validators>=0.19.0",
         "setuptools>=68.0.0"
