@@ -17,14 +17,6 @@ from pybtex.style.formatting.plain import Style as PlainStyle
 # Grab a logger
 log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
 
-# Add the warning filter only if the version is lower than 1.2
-# Filter doesn't do anything since that version
-MKDOCS_LOG_VERSION = "1.2"
-if Version(mkdocs.__version__) < Version(MKDOCS_LOG_VERSION):
-    from mkdocs.utils import warning_filter
-
-    log.addFilter(warning_filter)
-
 
 def format_simple(entries):
     """
@@ -187,7 +179,7 @@ def tempfile_from_url(name, url, suffix):
             )
             file.write(dl.text)
             file.close()
-            log.info(f"{name} downladed from URL {url} to temporary file ({file})")
+            log.info(f"{name} downloaded from URL {url} to temporary file ({file})")
             return file.name
 
         except requests.exceptions.RequestException:  # pragma: no cover
@@ -271,6 +263,6 @@ def sanitize_zotero_query(url: str) -> str:
         netloc=parsed_url.netloc,
         path=parsed_url.path,
         params=parsed_url.params,
-        query=urllib.parse.urlencode(query={**query_params, **updated_query_params}),
+        query=urllib.parse.urlencode({**query_params, **updated_query_params}),
         fragment=parsed_url.fragment,
     ).geturl()

@@ -15,7 +15,7 @@ from mkdocs_bibtex.utils import (
     format_simple,
     insert_citation_keys,
     tempfile_from_url,
-    log,
+    log
 )
 
 
@@ -133,7 +133,7 @@ class BibTeXPlugin(BasePlugin):
 
         self.bib_data = BibliographyData(entries=refs)
 
-        if "{number}" not in self.config.get("footnote_format"):
+        if "{number}" not in self.config.get("footnote_format", "{number}"):
             raise Exception("Must include `{number}` placeholder in footnote_format")
 
         self.footnote_format = self.config.get("footnote_format")
@@ -278,11 +278,11 @@ class BibTeXPlugin(BasePlugin):
         """
 
         bibliography = []
-        for number, (key, citation) in enumerate(self.all_references.items()):
+        for number, (key, citation) in enumerate(self.all_references.items(), 1):
             bibliography_text = "[^{}]: {}".format(
-                number,
+                self.format_footnote_key(number),
                 citation,
             )
             bibliography.append(bibliography_text)
 
-        return "\n".join(bibliography)
+        return "\n".join(bibliography) + "\n"
