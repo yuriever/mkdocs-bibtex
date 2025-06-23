@@ -1,26 +1,10 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# Virtual environments
-.venv
-
-# Python packaging
-build/
-dist/
-*.egg-info/
-*.egg
-
-# Development tools
-.python-version
-
-# IDEs and editors
-.vscode/
-
-# OS
+.vscode
 .DS_Store
 
-# Logs
-*.log
+.venv
+build
+dist
+
+src/mkdocs_bibtex/__pycache__/
+src/mkdocs_bibtex.egg-info/
+

@@ -1,43 +1,115 @@
-[![testing](https://github.com/shyamd/mkdocs-bibtex/workflows/testing/badge.svg)](https://github.com/shyamd/mkdocs-bibtex/actions?query=workflow%3Atesting)
-[![codecov](https://codecov.io/gh/shyamd/mkdocs-bibtex/branch/main/graph/badge.svg)](https://codecov.io/gh/shyamd/mkdocs-bibtex)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/shyamd/mkdocs-bibtex.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/shyamd/mkdocs-bibtex/context:python)
+# MkDocs BibTeX Plugin
+
+A [MkDocs](https://www.mkdocs.org/) plugin for citation management using BibTeX files.
 
 
-# mkdocs-bibtex
-
-A [MkDocs](https://www.mkdocs.org/) plugin for citation management using bibtex.
-
-
-## Setup
+## Installation
 
 Install the plugin using pip:
 
-```
+``` bash
 pip install mkdocs-bibtex
 ```
 
 
-Next, add the following lines to your `mkdocs.yml`:
+## Quick Start
 
-```yml
+1. Add the plugin to your `mkdocs.yml` configuration:
+
+    ``` yaml
+    plugins:
+    - search
+    - bibtex:
+        bib_file: "refs.bib"
+
+    markdown_extensions:
+    - footnotes
+    ```
+
+2. Create a BibTeX file (e.g., `refs.bib`) in your project root
+3. Use citations in your markdown files
+4. The bibliography will be automatically generated
+
+> **Note:** The `footnotes` extension is required for citation linking functionality.
+
+
+## Configuration Options
+
+| Option             | Type      | Default              | Description                                                                                     |
+| ------------------ | --------- | -------------------- | ----------------------------------------------------------------------------------------------- |
+| `bib_file`         | `string`  | -                    | Path or URL to a single BibTeX file. Can be absolute, relative to `mkdocs.yml`, or a remote URL |
+| `bib_dir`          | `string`  | -                    | Directory containing BibTeX files to load (alternative to `bib_file`)                           |
+| `bib_command`      | `string`  | `\bibliography`      | Command syntax to render bibliography in markdown                                               |
+| `bib_by_default`   | `boolean` | `true`               | Automatically append bibliography to every markdown document                                    |
+| `full_bib_command` | `string`  | `\full_bibliography` | Command syntax to render complete bibliography                                                  |
+
+
+### Example Configurations
+
+**Local BibTeX file:**
+
+```yaml
 plugins:
-  - search
   - bibtex:
-      bib_file: "refs.bib"
-markdown_extensions:
-  - footnotes
+      bib_file: "references/my_refs.bib"
 ```
 
-The footnotes extension is how citations are linked for now.
+**Remote BibTeX source (Zotero):**
 
-> If you have no `plugins` entry in your config file yet, you'll likely also want to add the `search` plugin. MkDocs enables it by default if there is no `plugins` entry set.
+```yaml
+plugins:
+  - bibtex:
+      bib_file: "https://api.zotero.org/*/items?format=bibtex"
+```
+
+**Multiple BibTeX files:**
+
+```yaml
+plugins:
+  - bibtex:
+      bib_dir: "bibliography/"
+```
+
+**Custom commands:**
+
+```yaml
+plugins:
+  - bibtex:
+      bib_file: "refs.bib"
+      bib_command: "\\references"
+      full_bib_command: "\\complete_bibliography"
+      bib_by_default: false
+```
 
 
-## Options
+## Usage
 
-- `bib_file` - The path or url to a single bibtex file. Path can either be absolute or relative to `mkdocs.yml`. Example URL: `https://api.zotero.org/*/items?format=bibtex`
-- `bib_dir` - Directory for bibtex files to load, same as above for path resolution
-- `bib_command` - The syntax to render your bibliography, defaults to `\bibliography`
-- `bib_by_default` - Automatically append the `bib_command` at the end of every markdown document, defaults to `true`
-- `full_bib_command` - The syntax to render your entire bibliography, defaults to `\full_bibliography`
 
+### Basic Citations
+
+Use standard citation syntax in your markdown files. The plugin will automatically generate the bibliography based on your configuration.
+
+
+### Manual Bibliography Placement
+
+If you set `bib_by_default: false`, you can manually place the bibliography using:
+
+```markdown
+\bibliography
+```
+
+
+### Complete Bibliography
+
+To render all entries from your BibTeX files:
+
+```markdown
+\full_bibliography
+```
+
+
+## Requirements
+
+- MkDocs
+- Python 3.7+
+- `footnotes` markdown extension
