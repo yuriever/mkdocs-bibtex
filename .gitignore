@@ -4,6 +4,7 @@
 .venv
 build
 dist
+uv.lock
 
 src/mkdocs_bibtex/__pycache__/
 src/mkdocs_bibtex.egg-info/
