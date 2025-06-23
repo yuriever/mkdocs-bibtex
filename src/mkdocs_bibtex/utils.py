@@ -4,13 +4,11 @@ import requests
 import tempfile
 import urllib.parse
 from collections import OrderedDict
-from functools import lru_cache
 from itertools import groupby
 from pathlib import Path
 from packaging.version import Version
 
 import mkdocs
-import pypandoc
 
 from pybtex.backends.markdown import Backend as MarkdownBackend
 from pybtex.database import BibliographyData
@@ -30,13 +28,13 @@ if Version(mkdocs.__version__) < Version(MKDOCS_LOG_VERSION):
 
 def format_simple(entries):
     """
-    Format the entries using a simple built in style
+    Format bibliography entries using pybtex's plain style.
 
     Args:
-        entries (dict): dictionary of entries
+        entries (dict): Dictionary of bibliography entries to format.
 
     Returns:
-        references (dict): dictionary of citation texts
+        dict: Dictionary mapping entry keys to formatted citation text.
     """
     style = PlainStyle()
     backend = MarkdownBackend()
@@ -54,171 +52,43 @@ def format_simple(entries):
     return citations
 
 
-def format_pandoc(entries, csl_path):
-    """
-    Format the entries using pandoc
-
-    Args:
-        entries (dict): dictionary of entries
-        csl_path (str): path to formatting CSL Fle
-    Returns:
-        references (dict): dictionary of citation texts
-    """
-    pandoc_version = tuple(int(ver) for ver in pypandoc.get_pandoc_version().split("."))
-    citations = OrderedDict()
-    is_new_pandoc = pandoc_version >= (2, 11)
-    msg = "pandoc>=2.11" if is_new_pandoc else "pandoc<2.11"
-    for key, entry in entries.items():
-        bibtex_string = BibliographyData(entries={entry.key: entry}).to_string("bibtex")
-        log.debug(
-            f"--Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}"
-        )
-        if is_new_pandoc:
-            citations[key] = _convert_pandoc_new(bibtex_string, csl_path)
-        else:
-            citations[key] = _convert_pandoc_legacy(bibtex_string, csl_path)
-        log.debug(
-            f"--SUCCESS Converting bibtex entry {key!r} with CSL file {csl_path!r} using {msg}"
-        )
-
-    return citations
-
-
-def _convert_pandoc_new(bibtex_string, csl_path):
-    """
-    Converts the PyBtex entry into formatted markdown citation text
-    using pandoc version 2.11 or newer
-    """
-    markdown = pypandoc.convert_text(
-        source=bibtex_string,
-        to="markdown_strict",
-        format="bibtex",
-        extra_args=[
-            "--citeproc",
-            "--csl",
-            csl_path,
-        ],
-    )
-
-    markdown = " ".join(markdown.split("\n"))
-    # Remove newlines from any generated span tag (non-capitalized words)
-    markdown = re.compile(r"<\/span>[\r\n]").sub("</span> ", markdown)
-
-    citation_regex = re.compile(
-        r"<span\s+class=\"csl-(?:left-margin|right-inline)\">(.+?)(?=<\/span>)<\/span>"
-    )
-    try:
-        citation = citation_regex.findall(re.sub(r"(\r|\n)", "", markdown))[1]
-    except IndexError:
-        citation = markdown
-    return citation.strip()
-
-
-@lru_cache(maxsize=1024)
-def _convert_pandoc_citekey(bibtex_string, csl_path, fullcite):
-    """
-    Uses pandoc to convert a markdown citation key reference
-    to a rendered markdown citation in the given CSL format.
-
-        Limitation (at least for harvard.csl): multiple citekeys
-        REQUIRE a '; ' separator to render correctly:
-            - [see @test; @test2] Works
-            - [see @test and @test2] Doesn't work
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        bib_path = Path(tmpdir).joinpath("temp.bib")
-        with open(bib_path, "wt", encoding="utf-8") as bibfile:
-            bibfile.write(bibtex_string)
-
-        log.debug(
-            f"----Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and Bibliography file"
-            f" '{bib_path!s}'..."
-        )
-        markdown = pypandoc.convert_text(
-            source=fullcite,
-            to="markdown-citations",
-            format="markdown",
-            extra_args=["--citeproc", "--csl", csl_path, "--bibliography", bib_path],
-        )
-        log.debug(
-            f"----SUCCESS Converting pandoc citation key {fullcite!r} with CSL file {csl_path!r} and "
-            f"Bibliography file '{bib_path!s}'"
-        )
-
-    # Return only the citation text (first line(s))
-    # remove any extra linebreaks to accommodate large author names
-    markdown = re.compile(r"[\r\n]").sub("", markdown)
-    return markdown.split(":::")[0].strip()
-
-
-def _convert_pandoc_legacy(bibtex_string, csl_path):
-    """
-    Converts the PyBtex entry into formatted markdown citation text
-    using pandoc version older than 2.11
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        bib_path = Path(tmpdir).joinpath("temp.bib")
-        with open(bib_path, "wt", encoding="utf-8") as bibfile:
-            bibfile.write(bibtex_string)
-        citation_text = """
----
-nocite: '@*'
----
-"""
-
-        markdown = pypandoc.convert_text(
-            source=citation_text,
-            to="markdown_strict",
-            format="md",
-            extra_args=["--csl", csl_path, "--bibliography", bib_path],
-            filters=["pandoc-citeproc"],
-        )
-
-    citation_regex = re.compile(r"[\d\.\\\s]*(.*)")
-    citation = citation_regex.findall(markdown.replace("\n", " "))[0]
-    return citation.strip()
-
-
 def extract_cite_keys(cite_block):
     """
-    Extract just the keys from a citation block
+    Extract citation keys from a citation block.
+
+    Args:
+        cite_block (str): Citation block containing one or more citation keys.
+
+    Returns:
+        list: List of citation keys found in the block.
     """
-    cite_regex = re.compile(r"@([\w\.:-]*)")
+    cite_regex = re.compile(r"@([^\s,\]]+)")
     cite_keys = re.findall(cite_regex, cite_block)
 
     return cite_keys
 
 
 def find_cite_blocks(markdown):
-    r"""
-    Finds entire cite blocks in the markdown text
+    """
+    Find citation blocks in markdown text.
 
     Args:
-        markdown (str): the markdown text to be extract citation
-                        blocks from
+        markdown (str): The markdown text to search for citation blocks.
 
-    regex explanation:
-    - first group  (1): everything. (the only thing we need)
-    - second group (2): (?:(?:\[(-{0,1}[^@]*)) |\[(?=-{0,1}@))
-    - third group  (3): ((?:-{0,1}@\w*(?:; ){0,1})+)
-    - fourth group (4): (?:[^\]\n]{0,1} {0,1})([^\]\n]*)
+    Returns:
+        list: List of citation block strings found in the markdown.
 
-    The first group captures the entire cite block, as is
-    The second group captures the prefix, which is everything between '[' and ' @| -@'
-    The third group captures the citekey(s), ';' separated (affixes NOT supported)
-    The fourth group captures anything after the citekeys, excluding the leading whitespace
-    (The non-capturing group removes any symbols or whitespaces between the citekey and suffix)
+    Examples:
+        Matches: [@author], [@author, p. 123], [@author, my suffix here]
+        Does NOT match: [mail@example.com], [@author; @doe]
 
-    Matches for [see @author; @doe my suffix here]
-        [0] entire block: '[see @author; @doe my suffix here]'
-        [1] prefix: 'see'
-        [2] citekeys: '@author; @doe'
-        [3] suffix: 'my suffix here'
-
-    Does NOT match: [mail@example.com]
-    DOES match [mail @example.com] as [mail][@example][com]
+    Note:
+        Uses regex pattern: (\[(-{0,1}@\S+)(?:,\s*(.*?))?\])
+        - Group 1: Entire citation block (returned value)
+        - Group 2: Citation key including @ symbol
+        - Group 3: Optional suffix after comma
     """
-    r = r"((?:(?:\[(-{0,1}[^@]*)) |\[(?=-{0,1}@))((?:-{0,1}@\w*(?:; ){0,1})+)(?:[^\]\n]{0,1} {0,1})([^\]\n]*)\])"
+    r = r"(\[(-{0,1}@\S+)(?:,\s*(.*?))?\])"
     cite_regex = re.compile(r)
 
     citation_blocks = [
@@ -230,17 +100,16 @@ def find_cite_blocks(markdown):
     return citation_blocks
 
 
-def insert_citation_keys(citation_quads, markdown, csl=False, bib=False):
+def insert_citation_keys(citation_quads, markdown):
     """
-    Insert citations into the markdown text replacing
-    the old citation keys
+    Replace citation blocks with generated citation keys in markdown text.
 
     Args:
-        citation_quads (tuple): a quad tuple of all citation info
-        markdown (str): the markdown text to modify
+        citation_quads (tuple): Tuple containing citation information.
+        markdown (str): The markdown text to modify.
 
     Returns:
-        markdown (str): the modified Markdown
+        str: Modified markdown with citation keys replaced.
     """
 
     log.debug("Replacing citation keys with the generated ones...")
@@ -252,26 +121,15 @@ def insert_citation_keys(citation_quads, markdown, csl=False, bib=False):
         full_citation = quad_group[0][0]  # the full citation block
         replacement_citation = "".join(["[^{}]".format(quad[2]) for quad in quad_group])
 
-        # if cite_inline is true, convert full_citation with pandoc and add to replacement_citation
-        if csl and bib:
-            log.debug(f"--Rendering citation inline for {full_citation!r}...")
-            # Verify that the pandoc installation is newer than 2.11
-            pandoc_version = pypandoc.get_pandoc_version()
-            pandoc_version_tuple = tuple(int(ver) for ver in pandoc_version.split("."))
-            if pandoc_version_tuple <= (2, 11):
-                raise RuntimeError(
-                    f"Your version of pandoc (v{pandoc_version}) is "
-                    "incompatible with the cite_inline feature."
-                )
+        # Extract suffix from the citation block using the same regex as find_cite_blocks
+        cite_regex = re.compile(r"(\[(-{0,1}@\S+)(?:,\s*(.*?))?\])")
+        match = cite_regex.search(full_citation)
+        suffix = ""
+        if match and match.group(3) and match.group(3).strip():  # group 3 is the suffix
+            suffix = " " + match.group(3).strip()
 
-            inline_citation = _convert_pandoc_citekey(bib, csl, full_citation)
-            replacement_citation = f" {inline_citation}{replacement_citation}"
-
-            # Make sure inline citations doesn't get an extra whitespace by
-            # replacing it with whitespace added first
-            markdown = markdown.replace(f" {full_citation}", replacement_citation)
-            log.debug(f"--SUCCESS Rendering citation inline for {full_citation!r}")
-
+        # Add suffix to replacement citation
+        replacement_citation = replacement_citation + suffix
         markdown = markdown.replace(full_citation, replacement_citation)
 
     log.debug("SUCCESS Replacing citation keys with the generated ones")
@@ -281,13 +139,13 @@ def insert_citation_keys(citation_quads, markdown, csl=False, bib=False):
 
 def format_bibliography(citation_quads):
     """
-    Generates a bibliography from the citation quads
+    Generate a bibliography from citation information.
 
     Args:
-        citation_quads (tuple): a quad tuple of all citation info
+        citation_quads (tuple): Tuple containing citation information.
 
     Returns:
-        markdown (str): the Markdown string for the bibliography
+        str: Markdown-formatted bibliography as a string.
     """
     new_bib = {quad[2]: quad[3] for quad in citation_quads}
     bibliography = []
@@ -299,6 +157,20 @@ def format_bibliography(citation_quads):
 
 
 def tempfile_from_url(name, url, suffix):
+    """
+    Download content from URL and save to a temporary file.
+
+    Args:
+        name (str): Name identifier for logging purposes.
+        url (str): URL to download content from.
+        suffix (str): File extension for the temporary file.
+
+    Returns:
+        str: Path to the created temporary file.
+
+    Raises:
+        RuntimeError: If download fails after 3 attempts or receives non-200 status.
+    """
     log.debug(f"Downloading {name} from URL {url} to temporary file...")
     if urllib.parse.urlparse(url).hostname == "api.zotero.org":
         return tempfile_from_zotero_url(name, url, suffix)
@@ -326,7 +198,22 @@ def tempfile_from_url(name, url, suffix):
 
 
 def tempfile_from_zotero_url(name: str, url: str, suffix: str) -> str:
-    """Download bibfile from the Zotero API."""
+    """
+    Download bibliography data from Zotero API and save to temporary file.
+
+    Handles pagination to download all available items from the Zotero API.
+
+    Args:
+        name: Name identifier for logging purposes.
+        url: Zotero API URL to download from.
+        suffix: File extension for the temporary file.
+
+    Returns:
+        Path to the created temporary file containing all downloaded data.
+
+    Raises:
+        RuntimeError: If download fails or receives non-200 status.
+    """
     log.debug(f"Downloading {name} from Zotero at {url}")
     bib_contents = ""
 
@@ -361,12 +248,17 @@ def tempfile_from_zotero_url(name: str, url: str, suffix: str) -> str:
 
 
 def sanitize_zotero_query(url: str) -> str:
-    """Sanitize query params in the Zotero URL.
+    """
+    Sanitize and update query parameters for Zotero API URLs.
 
-    The query params are amended to meet the following requirements:
-        - `mkdocs-bibtex` expects all bib data to be in bibtex format.
-        - Requesting the maximum number of items (100) reduces the requests
-            required, hence reducing load times.
+    Ensures the URL requests data in bibtex format with maximum items per page
+    to optimize download performance.
+
+    Args:
+        url: Original Zotero API URL.
+
+    Returns:
+        Updated URL with sanitized query parameters.
     """
     updated_query_params = {"format": "bibtex", "limit": 100}
 

@@ -12,7 +12,6 @@ from mkdocs_bibtex.utils import (
     find_cite_blocks,
     extract_cite_keys,
     format_bibliography,
-    format_pandoc,
     format_simple,
     insert_citation_keys,
     tempfile_from_url,
@@ -22,19 +21,29 @@ from mkdocs_bibtex.utils import (
 
 class BibTeXPlugin(BasePlugin):
     """
-    Allows the use of bibtex in markdown content for MKDocs.
+    MkDocs plugin for integrating BibTeX bibliography management into Markdown content.
 
-    Options:
-        bib_file (string): path or url to a single bibtex file for entries,
-                           url example: https://api.zotero.org/*/items?format=bibtex
-        bib_dir (string): path to a directory of bibtex files for entries
-        bib_command (string): command to place a bibliography relevant to just that file
-                              defaults to \bibliography
-        bib_by_default (bool): automatically appends bib_command to markdown pages
-                               by default, defaults to true
-        full_bib_command (string): command to place a full bibliography of all references
-        csl_file (string, optional): path or url to a CSL file, relative to mkdocs.yml.
-        cite_inline (bool): Whether or not to render inline citations, requires CSL, defaults to false
+    This plugin allows you to cite references using BibTeX keys in your Markdown files
+    and automatically generates formatted bibliographies. It supports both local and
+    remote BibTeX files, automatic bibliography insertion, and customizable citation
+    formatting.
+
+    Configuration Options:
+        bib_file (str, optional): Path to a single BibTeX file or URL to a remote BibTeX file.
+            Example URL: https://api.zotero.org/*/items?format=bibtex
+        bib_dir (str, optional): Path to a directory containing BibTeX files. All .bib files
+            in the directory will be recursively processed.
+        bib_command (str): Command string to insert a page-specific bibliography.
+            Defaults to "\\bibliography".
+        bib_by_default (bool): Whether to automatically append the bibliography command
+            to all pages. Defaults to True.
+        full_bib_command (str): Command string to insert a complete bibliography of all
+            references. Defaults to "\\full_bibliography".
+        footnote_format (str): Format string for citation footnotes. Must include
+            "{number}" placeholder. Defaults to "{number}".
+
+    Note:
+        Either bib_file or bib_dir must be specified, but not both.
     """
 
     config_scheme = [
@@ -43,8 +52,6 @@ class BibTeXPlugin(BasePlugin):
         ("bib_command", config_options.Type(str, default="\\bibliography")),
         ("bib_by_default", config_options.Type(bool, default=True)),
         ("full_bib_command", config_options.Type(str, default="\\full_bibliography")),
-        ("csl_file", config_options.Type(str, default="")),
-        ("cite_inline", config_options.Type(bool, default=False)),
         ("footnote_format", config_options.Type(str, default="{number}")),
     ]
 
@@ -55,12 +62,36 @@ class BibTeXPlugin(BasePlugin):
         self.configured = False
 
     def on_startup(self, *, command, dirty):
-        """Having on_startup() tells mkdocs to keep the plugin object upon rebuilds"""
+        """
+        Handle MkDocs startup event.
+
+        This method tells MkDocs to keep the plugin object instance across rebuilds,
+        which improves performance by avoiding re-initialization.
+
+        Args:
+            command: The MkDocs command being executed.
+            dirty: Whether this is a dirty rebuild.
+        """
         pass
 
     def on_config(self, config):
         """
-        Loads bibliography on load of config
+        Load and parse bibliography data when configuration is loaded.
+
+        This method is called when MkDocs loads the configuration. It loads BibTeX files
+        from the specified source (file or directory), parses them, and caches the
+        bibliography data for use during page processing. It also handles configuration
+        validation and optimization for rebuilds.
+
+        Args:
+            config: The MkDocs configuration object.
+
+        Returns:
+            The configuration object (possibly modified).
+
+        Raises:
+            Exception: If neither bib_file nor bib_dir is specified, or if the
+                footnote_format doesn't contain the required "{number}" placeholder.
         """
 
         bibfiles = []
@@ -101,21 +132,6 @@ class BibTeXPlugin(BasePlugin):
         self.all_references = OrderedDict()
 
         self.bib_data = BibliographyData(entries=refs)
-        self.bib_data_bibtex = self.bib_data.to_string("bibtex")
-
-        # Set CSL from either url or path (or empty)
-        is_url = validators.url(self.config["csl_file"])
-        if is_url:
-            self.csl_file = tempfile_from_url(
-                "CSL file", self.config["csl_file"], ".csl"
-            )
-        else:
-            self.csl_file = self.config.get("csl_file", None)
-
-        # Toggle whether or not to render citations inline (Requires CSL)
-        self.cite_inline = self.config.get("cite_inline", False)
-        if self.cite_inline and not self.csl_file:  # pragma: no cover
-            raise Exception("Must supply a CSL file in order to use cite_inline")
 
         if "{number}" not in self.config.get("footnote_format"):
             raise Exception("Must include `{number}` placeholder in footnote_format")
@@ -127,18 +143,23 @@ class BibTeXPlugin(BasePlugin):
 
     def on_page_markdown(self, markdown, page, config, files):
         """
-        Parses the markdown for each page, extracting the bibtex references
-        If a local reference list is requested, this will render that list where requested
+        Process markdown content to handle citations and bibliography generation.
 
-        1. Finds all cite keys (may include multiple citation references)
-        2. Convert all cite keys to citation quads:
-            (full cite key,
-            individual cite key,
-            citation key in corresponding style,
-            citation for individual cite key)
-        3. Insert formatted cite keys into text
-        4. Insert the bibliography into the markdown
-        5. Insert the full bibliography into the markdown
+        This method processes each page's markdown content to:
+        1. Find and extract citation keys from the text
+        2. Convert citation keys to properly formatted footnote references
+        3. Insert formatted citations back into the text
+        4. Generate and insert page-specific bibliographies
+        5. Generate and insert full bibliographies when requested
+
+        Args:
+            markdown (str): The raw markdown content of the page.
+            page: The MkDocs page object being processed.
+            config: The MkDocs configuration object.
+            files: The collection of all files in the documentation.
+
+        Returns:
+            str: The processed markdown content with citations and bibliographies inserted.
         """
 
         # 1. Grab all the cited keys in the markdown
@@ -147,17 +168,8 @@ class BibTeXPlugin(BasePlugin):
         # 2. Convert all the citations to text references
         citation_quads = self.format_citations(cite_keys)
 
-        # 3. Convert cited keys to citation,
-        # or a footnote reference if inline_cite is false.
-        if self.cite_inline:
-            markdown = insert_citation_keys(
-                citation_quads,
-                markdown,
-                self.csl_file,
-                self.bib_data_bibtex,
-            )
-        else:
-            markdown = insert_citation_keys(citation_quads, markdown)
+        # 3. Convert cited keys to footnote references
+        markdown = insert_citation_keys(citation_quads, markdown)
 
         # 4. Insert in the bibliography text into the markdown
         bib_command = self.config.get("bib_command", "\\bibliography")
@@ -185,25 +197,35 @@ class BibTeXPlugin(BasePlugin):
 
     def format_footnote_key(self, number):
         """
-        Create footnote key based on footnote_format
+        Generate a formatted footnote key based on the configured format.
 
         Args:
-            number (int): citation number
+            number (int): The citation number to format.
 
         Returns:
-            formatted footnote
+            str: The formatted footnote key according to the footnote_format configuration.
         """
         return self.footnote_format.format(number=number)
 
     def format_citations(self, cite_keys):
         """
-        Formats references into citation quads and adds them to the global registry
+        Convert citation keys to formatted citation quads and register them globally.
+
+        This method processes a list of citation keys, formats them according to the
+        bibliography style, assigns numbers, and creates citation quads containing
+        all necessary information for rendering. It also maintains a global registry
+        of all references used across the documentation.
 
         Args:
-            cite_keys (list): List of full cite_keys that maybe compound keys
+            cite_keys (list): List of citation key strings, which may be compound
+                (containing multiple keys separated by semicolons).
 
         Returns:
-            citation_quads: quad tuples of the citation information
+            list: List of citation quads, where each quad is a tuple containing:
+                - Full citation block (str): The original citation text
+                - Individual key (str): A single citation key
+                - Formatted footnote (str): The formatted footnote reference
+                - Citation text (str): The formatted bibliography entry
         """
 
         # Deal with arithmatex fix at some point
@@ -226,12 +248,9 @@ class BibTeXPlugin(BasePlugin):
             if key not in self.all_references:
                 entries[key] = self.bib_data.entries[key]
 
-        # 3. Format entries
+        # 3. Format entries using simple formatting
         log.debug("Formatting all bib entries...")
-        if self.csl_file:
-            self.all_references.update(format_pandoc(entries, self.csl_file))
-        else:
-            self.all_references.update(format_simple(entries))
+        self.all_references.update(format_simple(entries))
         log.debug("SUCCESS Formatting all bib entries")
 
         # 4. Construct quads
@@ -251,7 +270,11 @@ class BibTeXPlugin(BasePlugin):
     @property
     def full_bibliography(self):
         """
-        Returns the full bibliography text
+        Generate the complete bibliography containing all references used in the documentation.
+
+        Returns:
+            str: A formatted string containing all bibliography entries as footnotes,
+                numbered sequentially in the order they were first encountered.
         """
 
         bibliography = []
