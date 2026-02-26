@@ -18,3 +18,13 @@ All notable changes to this project are documented in this file.
 ### Dependencies
 
 - Removed runtime dependencies on `requests` and `validators`.
+
+## 2.0.1 - 2026-02-27
+
+- Added
+
+    - Added support for semicolon-separated inline citation blocks (e.g. [@author; @doe]).
+        - `CITE_BLOCK_RE` now recognizes multiple `@key` tokens separated by `;`.
+        - `extract_cite_keys` returns multiple citation keys for a single citation block.
+
+## Unreleased

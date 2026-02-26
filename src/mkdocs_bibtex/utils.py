@@ -9,10 +9,10 @@ from pybtex.style.formatting.plain import Style as PlainStyle
 # Grab a logger
 log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
 
-# Matches only [@author] and [@author, suffix]
-# Group 1: @author (without brackets)
+# Matches [@author], [@author, suffix], and [@author; @doe]
+# Group 1: one-or-more @keys (semicolon-separated) (without brackets)
 # Group 2: optional suffix (without brackets)
-CITE_BLOCK_RE = re.compile(r"\[(@[^\s,\]]+)(?:,\s*([^\[\]]+?))?\]")
+CITE_BLOCK_RE = re.compile(r"\[((?:@[^\s,\];]+(?:\s*;\s*@[^\s,\];]+)*))(?:,\s*([^\[\]]+?))?\]")
 
 
 def format_simple(entries):
@@ -55,7 +55,15 @@ def extract_cite_keys(cite_block):
     if not match:
         return []
 
-    return [match.group(1)[1:]]
+    keys_group = match.group(1)
+    # Split on semicolons and normalize each token (remove leading @)
+    keys = []
+    for tok in keys_group.split(";"):
+        tok = tok.strip()
+        if tok and tok.startswith("@"):
+            keys.append(tok[1:])
+
+    return keys
 
 
 def find_cite_blocks(markdown):
@@ -69,8 +77,8 @@ def find_cite_blocks(markdown):
         list: List of citation block strings found in the markdown.
 
     Examples:
-        Matches: [@author], [@author, p. 123]
-        Does NOT match: [mail@example.com], [@author; @doe], [-@author]
+        Matches: [@author], [@author; @doe], [@author, p. 123]
+        Does NOT match: [mail@example.com], [-@author]
 
     Note:
         Uses regex pattern: \\[(@[^\\s,\\]]+)(?:,\\s*([^\\[\\]]+?))?\\]
