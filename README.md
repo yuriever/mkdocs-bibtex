@@ -37,7 +37,7 @@ pip install mkdocs-bibtex
 
 | Option             | Type      | Default              | Description                                                                                     |
 | ------------------ | --------- | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `bib_file`         | `string`  | -                    | Path or URL to a single BibTeX file. Can be absolute, relative to `mkdocs.yml`, or a remote URL |
+| `bib_file`         | `string`  | -                    | Path to a single local BibTeX file. Can be absolute or relative to `mkdocs.yml`                 |
 | `bib_dir`          | `string`  | -                    | Directory containing BibTeX files to load (alternative to `bib_file`)                           |
 | `bib_command`      | `string`  | `\bibliography`      | Command syntax to render bibliography in markdown                                               |
 | `bib_by_default`   | `boolean` | `true`               | Automatically append bibliography to every markdown document                                    |
@@ -52,14 +52,6 @@ pip install mkdocs-bibtex
 plugins:
   - bibtex:
       bib_file: "references/my_refs.bib"
-```
-
-**Remote BibTeX source (Zotero):**
-
-```yaml
-plugins:
-  - bibtex:
-      bib_file: "https://api.zotero.org/*/items?format=bibtex"
 ```
 
 **Multiple BibTeX files:**

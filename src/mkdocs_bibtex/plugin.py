@@ -1,8 +1,8 @@
 import re
 import time
-import validators
 from collections import OrderedDict
 from pathlib import Path
+from urllib.parse import urlparse
 
 from mkdocs.config import config_options
 from mkdocs.plugins import BasePlugin
@@ -14,7 +14,6 @@ from mkdocs_bibtex.utils import (
     format_bibliography,
     format_simple,
     insert_citation_keys,
-    tempfile_from_url,
     log
 )
 
@@ -29,8 +28,7 @@ class BibTeXPlugin(BasePlugin):
     formatting.
 
     Configuration Options:
-        bib_file (str, optional): Path to a single BibTeX file or URL to a remote BibTeX file.
-            Example URL: https://api.zotero.org/*/items?format=bibtex
+        bib_file (str, optional): Path to a single local BibTeX file.
         bib_dir (str, optional): Path to a directory containing BibTeX files. All .bib files
             in the directory will be recursively processed.
         bib_command (str): Command string to insert a page-specific bibliography.
@@ -58,6 +56,7 @@ class BibTeXPlugin(BasePlugin):
     def __init__(self):
         self.bib_data = None
         self.all_references = OrderedDict()
+        self.warned_missing_keys = set()
         self.unescape_for_arithmatex = False
         self.configured = False
 
@@ -95,17 +94,26 @@ class BibTeXPlugin(BasePlugin):
         """
 
         bibfiles = []
+        self.warned_missing_keys = set()
 
-        # Set bib_file from either url or path
+        config_file_path = getattr(config, "config_file_path", None)
+        if config_file_path is None and hasattr(config, "get"):
+            config_file_path = config.get("config_file_path")
+        base_dir = Path(config_file_path).resolve().parent if config_file_path else Path.cwd()
+
+        # Set bib_file from local path
         if self.config.get("bib_file", None) is not None:
-            is_url = validators.url(self.config["bib_file"])
-            # if bib_file is a valid URL, cache it with tempfile
-            if is_url:
-                bibfiles.append(
-                    tempfile_from_url("bib file", self.config["bib_file"], ".bib")
-                )
-            else:
-                bibfiles.append(self.config["bib_file"])
+            bib_file = self.config["bib_file"]
+            parsed = urlparse(bib_file)
+            if parsed.scheme and parsed.netloc:
+                raise Exception("`bib_file` must be a local path. URL sources are not supported.")
+
+            bib_path = Path(bib_file)
+            if not bib_path.is_absolute():
+                bib_path = (base_dir / bib_path).resolve()
+            if not bib_path.exists():
+                raise Exception(f"BibTeX file not found: {bib_path}")
+            bibfiles.append(bib_path)
         elif self.config.get("bib_dir", None) is not None:
             bibfiles.extend(Path(self.config["bib_dir"]).rglob("*.bib"))
         else:  # pragma: no cover
@@ -237,11 +245,19 @@ class BibTeXPlugin(BasePlugin):
             for cite_block in cite_keys
             for key in extract_cite_keys(cite_block)
         ]
-        keys = list(OrderedDict.fromkeys([k for _, k in pairs]).keys())
-        numbers = {k: str(n + 1) for n, k in enumerate(keys)}
+
+        for key in OrderedDict.fromkeys([k for _, k in pairs]).keys():
+            if key in self.bib_data.entries:
+                continue
+            if key in self.warned_missing_keys:
+                continue
+            log.warning(f"Citation key '{key}' not found in bibliography data")
+            self.warned_missing_keys.add(key)
 
         # Remove non-existant keys from pairs
         pairs = [p for p in pairs if p[1] in self.bib_data.entries]
+        keys = list(OrderedDict.fromkeys([k for _, k in pairs]).keys())
+        numbers = {k: str(n + 1) for n, k in enumerate(keys)}
 
         # 2. Collect any unformatted reference keys
         for _, key in pairs:

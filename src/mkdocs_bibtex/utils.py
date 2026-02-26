@@ -1,21 +1,18 @@
 import logging
 import re
-import requests
-import tempfile
-import urllib.parse
 from collections import OrderedDict
 from itertools import groupby
-from pathlib import Path
-from packaging.version import Version
-
-import mkdocs
 
 from pybtex.backends.markdown import Backend as MarkdownBackend
-from pybtex.database import BibliographyData
 from pybtex.style.formatting.plain import Style as PlainStyle
 
 # Grab a logger
 log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
+
+# Matches only [@author] and [@author, suffix]
+# Group 1: @author (without brackets)
+# Group 2: optional suffix (without brackets)
+CITE_BLOCK_RE = re.compile(r"\[(@[^\s,\]]+)(?:,\s*([^\[\]]+?))?\]")
 
 
 def format_simple(entries):
@@ -54,10 +51,11 @@ def extract_cite_keys(cite_block):
     Returns:
         list: List of citation keys found in the block.
     """
-    cite_regex = re.compile(r"@([^\s,\]]+)")
-    cite_keys = re.findall(cite_regex, cite_block)
+    match = CITE_BLOCK_RE.fullmatch(cite_block.strip())
+    if not match:
+        return []
 
-    return cite_keys
+    return [match.group(1)[1:]]
 
 
 def find_cite_blocks(markdown):
@@ -71,23 +69,15 @@ def find_cite_blocks(markdown):
         list: List of citation block strings found in the markdown.
 
     Examples:
-        Matches: [@author], [@author, p. 123], [@author, my suffix here]
-        Does NOT match: [mail@example.com], [@author; @doe]
+        Matches: [@author], [@author, p. 123]
+        Does NOT match: [mail@example.com], [@author; @doe], [-@author]
 
     Note:
-        Uses regex pattern: (\[(-{0,1}@\S+)(?:,\s*(.*?))?\])
-        - Group 1: Entire citation block (returned value)
-        - Group 2: Citation key including @ symbol
-        - Group 3: Optional suffix after comma
+        Uses regex pattern: \\[(@[^\\s,\\]]+)(?:,\\s*([^\\[\\]]+?))?\\]
+        - Group 1: Citation key including @ symbol (without brackets)
+        - Group 2: Optional suffix after comma (without brackets)
     """
-    r = r"(\[(-{0,1}@\S+)(?:,\s*(.*?))?\])"
-    cite_regex = re.compile(r)
-
-    citation_blocks = [
-        # We only care about the block (group 1)
-        (matches.group(1))
-        for matches in re.finditer(cite_regex, markdown)
-    ]
+    citation_blocks = [matches.group(0) for matches in CITE_BLOCK_RE.finditer(markdown)]
 
     return citation_blocks
 
@@ -114,11 +104,10 @@ def insert_citation_keys(citation_quads, markdown):
         replacement_citation = "".join(["[^{}]".format(quad[2]) for quad in quad_group])
 
         # Extract suffix from the citation block using the same regex as find_cite_blocks
-        cite_regex = re.compile(r"(\[(-{0,1}@\S+)(?:,\s*(.*?))?\])")
-        match = cite_regex.search(full_citation)
+        match = CITE_BLOCK_RE.fullmatch(full_citation.strip())
         suffix = ""
-        if match and match.group(3) and match.group(3).strip():  # group 3 is the suffix
-            suffix = " " + match.group(3).strip()
+        if match and match.group(2) and match.group(2).strip():  # group 2 is the suffix
+            suffix = " " + match.group(2).strip()
 
         # Add suffix to replacement citation
         replacement_citation = replacement_citation + suffix
@@ -146,123 +135,3 @@ def format_bibliography(citation_quads):
         bibliography.append(bibliography_text)
 
     return "\n".join(bibliography)
-
-
-def tempfile_from_url(name, url, suffix):
-    """
-    Download content from URL and save to a temporary file.
-
-    Args:
-        name (str): Name identifier for logging purposes.
-        url (str): URL to download content from.
-        suffix (str): File extension for the temporary file.
-
-    Returns:
-        str: Path to the created temporary file.
-
-    Raises:
-        RuntimeError: If download fails after 3 attempts or receives non-200 status.
-    """
-    log.debug(f"Downloading {name} from URL {url} to temporary file...")
-    if urllib.parse.urlparse(url).hostname == "api.zotero.org":
-        return tempfile_from_zotero_url(name, url, suffix)
-    for i in range(3):
-        try:
-            dl = requests.get(url)
-            if dl.status_code != 200:  # pragma: no cover
-                raise RuntimeError(
-                    f"Couldn't download the url: {url}.\n Status Code: {dl.status_code}"
-                )
-
-            file = tempfile.NamedTemporaryFile(
-                mode="wt", encoding="utf-8", suffix=suffix, delete=False
-            )
-            file.write(dl.text)
-            file.close()
-            log.info(f"{name} downloaded from URL {url} to temporary file ({file})")
-            return file.name
-
-        except requests.exceptions.RequestException:  # pragma: no cover
-            pass
-    raise RuntimeError(
-        f"Couldn't successfully download the url: {url}"
-    )  # pragma: no cover
-
-
-def tempfile_from_zotero_url(name: str, url: str, suffix: str) -> str:
-    """
-    Download bibliography data from Zotero API and save to temporary file.
-
-    Handles pagination to download all available items from the Zotero API.
-
-    Args:
-        name: Name identifier for logging purposes.
-        url: Zotero API URL to download from.
-        suffix: File extension for the temporary file.
-
-    Returns:
-        Path to the created temporary file containing all downloaded data.
-
-    Raises:
-        RuntimeError: If download fails or receives non-200 status.
-    """
-    log.debug(f"Downloading {name} from Zotero at {url}")
-    bib_contents = ""
-
-    url = sanitize_zotero_query(url)
-
-    # Limit the pages requested to 999 arbitrarily. This will support a maximum of ~100k items
-    for page_num in range(999):
-        for _ in range(3):
-            try:
-                response = requests.get(url)
-                if response.status_code != 200:
-                    msg = f"Couldn't download the url: {url}.\nStatus Code: {response.status_code}"
-                    raise RuntimeError(msg)
-                break
-            except requests.exceptions.RequestException:  # pragma: no cover
-                pass
-
-        bib_contents += response.text
-        try:
-            url = response.links["next"]["url"]
-        except KeyError:
-            log.debug(f"Downloaded {page_num}(s) from {url}")
-            break
-    else:
-        log.debug(f"Exceeded the maximum number of pages. Found: {page_num} pages")
-    with tempfile.NamedTemporaryFile(
-        mode="wt", encoding="utf-8", suffix=suffix, delete=False
-    ) as file:
-        file.write(bib_contents)
-    log.info(f"{name} downloaded from URL {url} to temporary file ({file})")
-    return file.name
-
-
-def sanitize_zotero_query(url: str) -> str:
-    """
-    Sanitize and update query parameters for Zotero API URLs.
-
-    Ensures the URL requests data in bibtex format with maximum items per page
-    to optimize download performance.
-
-    Args:
-        url: Original Zotero API URL.
-
-    Returns:
-        Updated URL with sanitized query parameters.
-    """
-    updated_query_params = {"format": "bibtex", "limit": 100}
-
-    parsed_url = urllib.parse.urlparse(url)
-
-    query_params = dict(urllib.parse.parse_qsl(parsed_url.query))
-
-    return urllib.parse.ParseResult(
-        scheme=parsed_url.scheme,
-        netloc=parsed_url.netloc,
-        path=parsed_url.path,
-        params=parsed_url.params,
-        query=urllib.parse.urlencode({**query_params, **updated_query_params}),
-        fragment=parsed_url.fragment,
-    ).geturl()
