@@ -2,7 +2,6 @@
 
 A [MkDocs](https://www.mkdocs.org/) plugin for citation management using BibTeX files.
 
-
 ## Installation
 
 Install the plugin using pip:
@@ -10,7 +9,6 @@ Install the plugin using pip:
 ``` bash
 pip install mkdocs-bibtex
 ```
-
 
 ## Quick Start
 
@@ -32,7 +30,6 @@ pip install mkdocs-bibtex
 
 > **Note:** The `footnotes` extension is required for citation linking functionality.
 
-
 ## Configuration Options
 
 | Option             | Type      | Default              | Description                                                                                     |
@@ -42,7 +39,6 @@ pip install mkdocs-bibtex
 | `bib_command`      | `string`  | `\bibliography`      | Command syntax to render bibliography in markdown                                               |
 | `bib_by_default`   | `boolean` | `true`               | Automatically append bibliography to every markdown document                                    |
 | `full_bib_command` | `string`  | `\full_bibliography` | Command syntax to render complete bibliography                                                  |
-
 
 ### Example Configurations
 
@@ -73,14 +69,11 @@ plugins:
       bib_by_default: false
 ```
 
-
 ## Usage
-
 
 ### Basic Citations
 
 Use standard citation syntax in your markdown files. The plugin will automatically generate the bibliography based on your configuration.
-
 
 ### Manual Bibliography Placement
 
@@ -90,7 +83,6 @@ If you set `bib_by_default: false`, you can manually place the bibliography usin
 \bibliography
 ```
 
-
 ### Complete Bibliography
 
 To render all entries from your BibTeX files:
@@ -98,7 +90,6 @@ To render all entries from your BibTeX files:
 ```markdown
 \full_bibliography
 ```
-
 
 ## Requirements
 
