@@ -1,98 +1,52 @@
 # MkDocs BibTeX Plugin
 
-A [MkDocs](https://www.mkdocs.org/) plugin for citation management using BibTeX files.
+MkDocs plugin for BibTeX citations and bibliography rendering.
 
-## Installation
+## Install
 
-Install the plugin using pip:
-
-``` bash
+```bash
 pip install mkdocs-bibtex
 ```
 
 ## Quick Start
 
-1. Add the plugin to your `mkdocs.yml` configuration:
-
-    ``` yaml
-    plugins:
-    - search
-    - bibtex:
-        bib_file: "refs.bib"
-
-    markdown_extensions:
-    - footnotes
-    ```
-
-2. Create a BibTeX file (e.g., `refs.bib`) in your project root
-3. Use citations in your markdown files
-4. The bibliography will be automatically generated
-
-> **Note:** The `footnotes` extension is required for citation linking functionality.
-
-## Configuration Options
-
-| Option             | Type      | Default              | Description                                                                                     |
-| ------------------ | --------- | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `bib_file`         | `string`  | -                    | Path to a single local BibTeX file. Can be absolute or relative to `mkdocs.yml`                 |
-| `bib_dir`          | `string`  | -                    | Directory containing BibTeX files to load (alternative to `bib_file`)                           |
-| `bib_command`      | `string`  | `\bibliography`      | Command syntax to render bibliography in markdown                                               |
-| `bib_by_default`   | `boolean` | `true`               | Automatically append bibliography to every markdown document                                    |
-| `full_bib_command` | `string`  | `\full_bibliography` | Command syntax to render complete bibliography                                                  |
-
-### Example Configurations
-
-**Local BibTeX file:**
-
-```yaml
-plugins:
-  - bibtex:
-      bib_file: "references/my_refs.bib"
-```
-
-**Multiple BibTeX files:**
+Add this to `mkdocs.yml`:
 
 ```yaml
 plugins:
   - bibtex:
       bib_dir: "bibliography/"
+
+markdown_extensions:
+  - footnotes
 ```
 
-**Custom commands:**
+Then:
 
-```yaml
-plugins:
-  - bibtex:
-      bib_file: "refs.bib"
-      bib_command: "\\references"
-      full_bib_command: "\\complete_bibliography"
-      bib_by_default: false
-```
+1. Put one or more `.bib` files in `bibliography/`.
+2. Add citations in Markdown using `\cite{...}`.
+3. Build your docs; bibliography entries are rendered automatically.
 
-## Usage
-
-### Basic Citations
-
-Use standard citation syntax in your markdown files. The plugin will automatically generate the bibliography based on your configuration.
-
-### Manual Bibliography Placement
-
-If you set `bib_by_default: false`, you can manually place the bibliography using:
+## Citation Syntax
 
 ```markdown
-\bibliography
+\cite{author1}
+\cite[Section 1]{author1}
+\cite{author1,other2}
 ```
 
-### Complete Bibliography
+## Bibliography Commands
 
-To render all entries from your BibTeX files:
+- `\bibliography`: Render referenced entries.
+- `\full_bibliography`: Render all loaded entries.
 
-```markdown
-\full_bibliography
-```
+If you set `bib_by_default: false`, place `\bibliography` manually where you want it.
 
-## Requirements
+## Config
 
-- MkDocs
-- Python 3.7+
-- `footnotes` markdown extension
+| Option | Default | Required | Description |
+| --- | --- | --- | --- |
+| `bib_dir` | - | Yes | Directory containing `.bib` files. |
+| `bib_command` | `\bibliography` | No | Markdown command for referenced bibliography. |
+| `full_bib_command` | `\full_bibliography` | No | Markdown command for full bibliography. |
+| `bib_by_default` | `true` | No | Append bibliography automatically to each page. |

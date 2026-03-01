@@ -2,7 +2,6 @@ import re
 import time
 from collections import OrderedDict
 from pathlib import Path
-from urllib.parse import urlparse
 
 from mkdocs.config import config_options
 from mkdocs.plugins import BasePlugin
@@ -23,14 +22,12 @@ class BibTeXPlugin(BasePlugin):
     MkDocs plugin for integrating BibTeX bibliography management into Markdown content.
 
     This plugin allows you to cite references using BibTeX keys in your Markdown files
-    and automatically generates formatted bibliographies. It supports both local and
-    remote BibTeX files, automatic bibliography insertion, and customizable citation
-    formatting.
+    and automatically generates formatted bibliographies. It supports local BibTeX
+    directories, automatic bibliography insertion, and customizable citation formatting.
 
     Configuration Options:
-        bib_file (str, optional): Path to a single local BibTeX file.
-        bib_dir (str, optional): Path to a directory containing BibTeX files. All .bib files
-            in the directory will be recursively processed.
+        bib_dir (str): Path to a directory containing BibTeX files. All .bib files in
+            the directory will be recursively processed.
         bib_command (str): Command string to insert a page-specific bibliography.
             Defaults to "\\bibliography".
         bib_by_default (bool): Whether to automatically append the bibliography command
@@ -41,12 +38,11 @@ class BibTeXPlugin(BasePlugin):
             "{number}" placeholder. Defaults to "{number}".
 
     Note:
-        Either bib_file or bib_dir must be specified, but not both.
+        `bib_dir` is required.
     """
 
     config_scheme = [
-        ("bib_file", config_options.Type(str, required=False)),
-        ("bib_dir", config_options.Dir(exists=True, required=False)),
+        ("bib_dir", config_options.Dir(exists=True, required=True)),
         ("bib_command", config_options.Type(str, default="\\bibliography")),
         ("bib_by_default", config_options.Type(bool, default=True)),
         ("full_bib_command", config_options.Type(str, default="\\full_bibliography")),
@@ -57,19 +53,13 @@ class BibTeXPlugin(BasePlugin):
         self.bib_data = None
         self.all_references = OrderedDict()
         self.warned_missing_keys = set()
-        self.unescape_for_arithmatex = False
-        self.configured = False
 
     def on_startup(self, *, command, dirty):
         """
-        Handle MkDocs startup event.
+        Opt in to MkDocs startup/shutdown lifecycle handling.
 
-        This method tells MkDocs to keep the plugin object instance across rebuilds,
-        which improves performance by avoiding re-initialization.
-
-        Args:
-            command: The MkDocs command being executed.
-            dirty: Whether this is a dirty rebuild.
+        In MkDocs, defining this hook causes the plugin instance to persist across
+        rebuilds during `mkdocs serve`, which allows cached state to be reused.
         """
         pass
 
@@ -78,7 +68,7 @@ class BibTeXPlugin(BasePlugin):
         Load and parse bibliography data when configuration is loaded.
 
         This method is called when MkDocs loads the configuration. It loads BibTeX files
-        from the specified source (file or directory), parses them, and caches the
+        from the configured directory, parses them, and caches the
         bibliography data for use during page processing. It also handles configuration
         validation and optimization for rebuilds.
 
@@ -89,7 +79,7 @@ class BibTeXPlugin(BasePlugin):
             The configuration object (possibly modified).
 
         Raises:
-            Exception: If neither bib_file nor bib_dir is specified, or if the
+            Exception: If bib_dir is not specified, or if the
                 footnote_format doesn't contain the required "{number}" placeholder.
         """
 
@@ -101,23 +91,13 @@ class BibTeXPlugin(BasePlugin):
             config_file_path = config.get("config_file_path")
         base_dir = Path(config_file_path).resolve().parent if config_file_path else Path.cwd()
 
-        # Set bib_file from local path
-        if self.config.get("bib_file", None) is not None:
-            bib_file = self.config["bib_file"]
-            parsed = urlparse(bib_file)
-            if parsed.scheme and parsed.netloc:
-                raise Exception("`bib_file` must be a local path. URL sources are not supported.")
-
-            bib_path = Path(bib_file)
-            if not bib_path.is_absolute():
-                bib_path = (base_dir / bib_path).resolve()
-            if not bib_path.exists():
-                raise Exception(f"BibTeX file not found: {bib_path}")
-            bibfiles.append(bib_path)
-        elif self.config.get("bib_dir", None) is not None:
-            bibfiles.extend(Path(self.config["bib_dir"]).rglob("*.bib"))
+        if self.config.get("bib_dir", None) is not None:
+            bib_dir = Path(self.config["bib_dir"])
+            if not bib_dir.is_absolute():
+                bib_dir = (base_dir / bib_dir).resolve()
+            bibfiles.extend(bib_dir.rglob("*.bib"))
         else:  # pragma: no cover
-            raise Exception("Must supply a bibtex file or directory for bibtex files")
+            raise Exception("Must supply a directory for bibtex files via `bib_dir`")
 
         # load bibliography data
         refs = {}
@@ -226,7 +206,7 @@ class BibTeXPlugin(BasePlugin):
 
         Args:
             cite_keys (list): List of citation key strings, which may be compound
-                (containing multiple keys separated by semicolons).
+                (containing multiple keys separated by commas in \\cite{...}).
 
         Returns:
             list: List of citation quads, where each quad is a tuple containing:
@@ -235,8 +215,6 @@ class BibTeXPlugin(BasePlugin):
                 - Formatted footnote (str): The formatted footnote reference
                 - Citation text (str): The formatted bibliography entry
         """
-
-        # Deal with arithmatex fix at some point
 
         # 1. Extract the keys from the keyset
         entries = OrderedDict()

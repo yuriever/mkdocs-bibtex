@@ -1,16 +1,13 @@
 [project]
 name = "mkdocs-bibtex"
-version = "2.0.1"
+version = "2.1.0"
 description = "An MkDocs plugin that enables managing citations with BibTeX"
 readme = "README.md"
-license = {text = "BSD-3-Clause-LBNL"}
-authors = [{name = "Shyam Dwaraknath", email = "shyamd@lbl.gov"}]
+license = { text = "BSD-3-Clause-LBNL" }
+authors = [{ name = "Shyam Dwaraknath", email = "shyamd@lbl.gov" }]
 keywords = ["mkdocs", "python", "markdown", "bibtex"]
 requires-python = ">=3.8"
-dependencies = [
-    "mkdocs>=1.6",
-    "pybtex"
-]
+dependencies = ["mkdocs>=1.6,<2.0", "pybtex"]
 
 [project.entry-points."mkdocs.plugins"]
 bibtex = "mkdocs_bibtex.plugin:BibTeXPlugin"

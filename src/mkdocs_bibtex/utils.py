@@ -9,10 +9,10 @@ from pybtex.style.formatting.plain import Style as PlainStyle
 # Grab a logger
 log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
 
-# Matches [@author], [@author, suffix], and [@author; @doe]
-# Group 1: one-or-more @keys (semicolon-separated) (without brackets)
-# Group 2: optional suffix (without brackets)
-CITE_BLOCK_RE = re.compile(r"\[((?:@[^\s,\];]+(?:\s*;\s*@[^\s,\];]+)*))(?:,\s*([^\[\]]+?))?\]")
+# Matches \cite{author}, \cite[Section 2]{author}, and \cite{author1,author2}
+# Group 1: optional note in square brackets (without brackets)
+# Group 2: one-or-more keys in braces (comma-separated, without braces)
+CITE_BLOCK_RE = re.compile(r"\\cite\b(?:\s*\[([^\[\]]*?)\])?\s*\{([^{}]+)\}")
 
 
 def format_simple(entries):
@@ -29,7 +29,7 @@ def format_simple(entries):
     backend = MarkdownBackend()
     citations = OrderedDict()
     for key, entry in entries.items():
-        log.debug(f"Converting bibtex entry {key!r} without pandoc")
+        log.debug(f"Formatting bibtex entry {key!r}")
         formatted_entry = style.format_entry("", entry)
         entry_text = formatted_entry.text.render(backend)
         entry_text = entry_text.replace("\n", " ")
@@ -37,7 +37,7 @@ def format_simple(entries):
         citations[key] = (
             entry_text.replace("\\(", "(").replace("\\)", ")").replace("\\.", ".")
         )
-        log.debug(f"SUCCESS Converting bibtex entry {key!r} without pandoc")
+        log.debug(f"SUCCESS Formatting bibtex entry {key!r}")
     return citations
 
 
@@ -55,15 +55,8 @@ def extract_cite_keys(cite_block):
     if not match:
         return []
 
-    keys_group = match.group(1)
-    # Split on semicolons and normalize each token (remove leading @)
-    keys = []
-    for tok in keys_group.split(";"):
-        tok = tok.strip()
-        if tok and tok.startswith("@"):
-            keys.append(tok[1:])
-
-    return keys
+    keys_group = match.group(2)
+    return [tok.strip() for tok in keys_group.split(",") if tok.strip()]
 
 
 def find_cite_blocks(markdown):
@@ -77,13 +70,8 @@ def find_cite_blocks(markdown):
         list: List of citation block strings found in the markdown.
 
     Examples:
-        Matches: [@author], [@author; @doe], [@author, p. 123]
-        Does NOT match: [mail@example.com], [-@author]
-
-    Note:
-        Uses regex pattern: \\[(@[^\\s,\\]]+)(?:,\\s*([^\\[\\]]+?))?\\]
-        - Group 1: Citation key including @ symbol (without brackets)
-        - Group 2: Optional suffix after comma (without brackets)
+        Matches: \\cite{author}, \\cite[Section 2]{author}, \\cite{author1,author2}
+        Does NOT match: \\parencite{author}, [@author]
     """
     citation_blocks = [matches.group(0) for matches in CITE_BLOCK_RE.finditer(markdown)]
 
@@ -114,8 +102,8 @@ def insert_citation_keys(citation_quads, markdown):
         # Extract suffix from the citation block using the same regex as find_cite_blocks
         match = CITE_BLOCK_RE.fullmatch(full_citation.strip())
         suffix = ""
-        if match and match.group(2) and match.group(2).strip():  # group 2 is the suffix
-            suffix = " " + match.group(2).strip()
+        if match and match.group(1) and match.group(1).strip():  # group 1 is the optional note
+            suffix = " " + match.group(1).strip()
 
         # Add suffix to replacement citation
         replacement_citation = replacement_citation + suffix
