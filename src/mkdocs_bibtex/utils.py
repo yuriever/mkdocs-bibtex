@@ -15,6 +15,24 @@ log = logging.getLogger("mkdocs.plugins.mkdocs-bibtex")
 CITE_BLOCK_RE = re.compile(r"\\cite\b(?:\s*\[([^\[\]]*?)\])?\s*\{([^{}]+)\}")
 
 
+def _extract_suffix_from_cite_block(cite_block):
+    """Extract optional note from a cite block."""
+    match = CITE_BLOCK_RE.fullmatch(cite_block.strip())
+    if not match or not match.group(1) or not match.group(1).strip():
+        return ""
+    return match.group(1).strip()
+
+
+def _render_bibliography_entries(entries):
+    """Render bibliography entries as markdown footnotes for unified numbering."""
+    bibliography = []
+    for key, citation in entries.items():
+        bibliography_text = "[^{}]: {}".format(key, citation)
+        bibliography.append(bibliography_text)
+
+    return "\n".join(bibliography)
+
+
 def format_simple(entries):
     """
     Format bibliography entries using pybtex's plain style.
@@ -87,7 +105,7 @@ def insert_citation_keys(citation_quads, markdown):
         markdown (str): The markdown text to modify.
 
     Returns:
-        str: Modified markdown with citation keys replaced.
+        str: Modified markdown with native footnote refs replacing cite blocks.
     """
 
     log.debug("Replacing citation keys with the generated ones...")
@@ -96,18 +114,19 @@ def insert_citation_keys(citation_quads, markdown):
 
     grouped_quads = [list(g) for _, g in groupby(citation_quads, key=lambda x: x[0])]
     for quad_group in grouped_quads:
-        full_citation = quad_group[0][0]  # the full citation block
-        replacement_citation = "".join(["[^{}]".format(quad[2]) for quad in quad_group])
+        full_citation = quad_group[0][0][1]  # the full citation block
+        cite_keys = [quad[2] for quad in quad_group]
+        footnote_refs = "".join(["[^{}]".format(key) for key in cite_keys])
 
-        # Extract suffix from the citation block using the same regex as find_cite_blocks
-        match = CITE_BLOCK_RE.fullmatch(full_citation.strip())
-        suffix = ""
-        if match and match.group(1) and match.group(1).strip():  # group 1 is the optional note
-            suffix = " " + match.group(1).strip()
+        suffix = _extract_suffix_from_cite_block(full_citation)
+        replacement_citation = footnote_refs
+        if suffix:
+            replacement_citation = "{} <sup class=\"mkdocs-bibtex-citation-note\">{}</sup>".format(
+                replacement_citation,
+                suffix,
+            )
 
-        # Add suffix to replacement citation
-        replacement_citation = replacement_citation + suffix
-        markdown = markdown.replace(full_citation, replacement_citation)
+        markdown = markdown.replace(full_citation, replacement_citation, 1)
 
     log.debug("SUCCESS Replacing citation keys with the generated ones")
 
@@ -125,9 +144,4 @@ def format_bibliography(citation_quads):
         str: Markdown-formatted bibliography as a string.
     """
     new_bib = {quad[2]: quad[3] for quad in citation_quads}
-    bibliography = []
-    for key, citation in new_bib.items():
-        bibliography_text = "[^{}]: {}".format(key, citation)
-        bibliography.append(bibliography_text)
-
-    return "\n".join(bibliography)
+    return _render_bibliography_entries(new_bib)

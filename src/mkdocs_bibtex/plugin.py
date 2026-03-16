@@ -11,6 +11,7 @@ from mkdocs_bibtex.utils import (
     find_cite_blocks,
     extract_cite_keys,
     format_bibliography,
+    _render_bibliography_entries,
     format_simple,
     insert_citation_keys,
     log
@@ -219,12 +220,12 @@ class BibTeXPlugin(BasePlugin):
         # 1. Extract the keys from the keyset
         entries = OrderedDict()
         pairs = [
-            [cite_block, key]
-            for cite_block in cite_keys
+            [cite_index, cite_block, key]
+            for cite_index, cite_block in enumerate(cite_keys)
             for key in extract_cite_keys(cite_block)
         ]
 
-        for key in OrderedDict.fromkeys([k for _, k in pairs]).keys():
+        for key in OrderedDict.fromkeys([k for _, _, k in pairs]).keys():
             if key in self.bib_data.entries:
                 continue
             if key in self.warned_missing_keys:
@@ -233,12 +234,12 @@ class BibTeXPlugin(BasePlugin):
             self.warned_missing_keys.add(key)
 
         # Remove non-existant keys from pairs
-        pairs = [p for p in pairs if p[1] in self.bib_data.entries]
-        keys = list(OrderedDict.fromkeys([k for _, k in pairs]).keys())
+        pairs = [p for p in pairs if p[2] in self.bib_data.entries]
+        keys = list(OrderedDict.fromkeys([k for _, _, k in pairs]).keys())
         numbers = {k: str(n + 1) for n, k in enumerate(keys)}
 
         # 2. Collect any unformatted reference keys
-        for _, key in pairs:
+        for _, _, key in pairs:
             if key not in self.all_references:
                 entries[key] = self.bib_data.entries[key]
 
@@ -250,16 +251,16 @@ class BibTeXPlugin(BasePlugin):
         # 4. Construct quads
         quads = [
             (
-                cite_block,
+                (cite_index, cite_block),
                 key,
-                self.format_footnote_key(numbers[key]),
+                "mkbib-{}".format(self.format_footnote_key(numbers[key])),
                 self.all_references[key],
             )
-            for cite_block, key in pairs
+            for cite_index, cite_block, key in pairs
         ]
 
-        # List the quads in order to remove duplicate entries
-        return list(dict.fromkeys(quads))
+        # Preserve occurrence order so repeated cite blocks are replaced correctly.
+        return quads
 
     @property
     def full_bibliography(self):
@@ -271,12 +272,11 @@ class BibTeXPlugin(BasePlugin):
                 numbered sequentially in the order they were first encountered.
         """
 
-        bibliography = []
-        for number, (key, citation) in enumerate(self.all_references.items(), 1):
-            bibliography_text = "[^{}]: {}".format(
+        numbered_entries = OrderedDict(
+            (
                 self.format_footnote_key(number),
                 citation,
             )
-            bibliography.append(bibliography_text)
-
-        return "\n".join(bibliography) + "\n"
+            for number, (_, citation) in enumerate(self.all_references.items(), 1)
+        )
+        return _render_bibliography_entries(numbered_entries) + "\n"
