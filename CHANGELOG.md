@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 2.3.4 - 2026-03-17
+
+### Changed
+
+- Unknown citation keys in `\\cite{...}` are now rendered inline as visible markers in HTML.
+        - Missing keys render as `<span class="mkdocs-bibtex-missing-citation" ...>[key]</span>`.
+        - Default inline style uses a red, high-contrast appearance so missing citations are
+            easy to spot while reviewing generated pages.
+
+### Fixed
+
+- Unknown keys are no longer silently removed from rendered output when mixed with valid
+    citations.
+        - Example: `\\cite{missing,smith2020}` now shows a visible marker for `missing` and
+            still links `smith2020` to its bibliography entry.
+
 ## 2.3.3 - 2026-03-17
 
 ### Fixed

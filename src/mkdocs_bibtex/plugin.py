@@ -233,13 +233,12 @@ class BibTeXPlugin(BasePlugin):
             log.warning(f"Citation key '{key}' not found in bibliography data")
             self.warned_missing_keys.add(key)
 
-        # Remove non-existant keys from pairs
-        pairs = [p for p in pairs if p[2] in self.bib_data.entries]
-        keys = list(OrderedDict.fromkeys([k for _, _, k in pairs]).keys())
+        valid_pairs = [p for p in pairs if p[2] in self.bib_data.entries]
+        keys = list(OrderedDict.fromkeys([k for _, _, k in valid_pairs]).keys())
         numbers = {k: str(n + 1) for n, k in enumerate(keys)}
 
         # 2. Collect any unformatted reference keys
-        for _, _, key in pairs:
+        for _, _, key in valid_pairs:
             if key not in self.all_references:
                 entries[key] = self.bib_data.entries[key]
 
@@ -253,8 +252,10 @@ class BibTeXPlugin(BasePlugin):
             (
                 (cite_index, cite_block),
                 key,
-                "mkbib-{}".format(self.format_footnote_key(numbers[key])),
-                self.all_references[key],
+                "mkbib-{}".format(self.format_footnote_key(numbers[key]))
+                if key in numbers
+                else None,
+                self.all_references[key] if key in numbers else None,
             )
             for cite_index, cite_block, key in pairs
         ]

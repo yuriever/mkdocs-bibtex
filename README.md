@@ -49,6 +49,10 @@ If a page already contains footnotes (for example `[^a]`), citation numbers cont
 
 By default, citation numbers in inline refs link to entries in the page footnote list.
 
+Unknown citation keys are rendered as visible inline markers (instead of disappearing), so they
+are easy to find in generated HTML.
+Example: `\\cite{xxxx}` renders `[xxxx]` with class `mkdocs-bibtex-missing-citation`.
+
 ## Bibliography Commands
 
 - `\bibliography`: Render referenced entries.
@@ -58,11 +62,9 @@ If you set `bib_by_default: false`, place `\bibliography` manually where you wan
 
 ## Bibliography Markup and Styling
 
-Bibliography entries are rendered as Markdown footnotes, so they follow your theme's existing
-footnote styles automatically.
+Bibliography entries are rendered as Markdown footnotes, so they follow your theme's existing footnote styles automatically.
 
-Citation labels are emitted as native footnote refs so MkDocs/Python-Markdown generates
-standard `fnref`/`fn` ids and backrefs.
+Citation labels are emitted as native footnote refs so MkDocs/Python-Markdown generates standard `fnref`/`fn` ids and backrefs.
 
 Citation refs are rendered using footnote-style markup:
 
@@ -79,6 +81,11 @@ Suggested CSS:
   margin-left: 0.25em;
   font-size: inherit;
   vertical-align: super;
+}
+
+.mkdocs-bibtex-missing-citation {
+  color: #b00020;
+  font-weight: 600;
 }
 ```
 

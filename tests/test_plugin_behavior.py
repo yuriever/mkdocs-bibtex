@@ -294,6 +294,52 @@ class TestPluginBehavior(unittest.TestCase):
             self.assertIn('id="fn:mkbib-1"', rendered)
             self.assertIn('id="fn:mkbib-2"', rendered)
 
+    def test_mixed_page_footnotes_and_repeated_cites_have_consistent_refs_and_backrefs(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            markdown = (
+                "xxxx [^a]\n\n"
+                "[^a]: This is a footnote.\n\n"
+                r"xxxx \cite{smith2020} xxxx\n\n"
+                r"xxxx \cite{smith2020,doe2021} xxxx\n\n"
+                "xxxx [^b]\n\n"
+                "[^b]: This is a footnote.\n\n"
+                r"xxxx \cite{smith2020}, xxxx\n\n"
+                r"xxxx \cite[Section 1]{smith2020} xxxx\n\n"
+                "xxxx [^c]\n\n"
+                "[^c]: This is a footnote.\n"
+            )
+            rendered = self._render_html(plugin, markdown, config)
+
+            self.assertNotIn(r"\cite", rendered)
+            self.assertIn('id="fnref:a"', rendered)
+            self.assertIn('id="fnref:b"', rendered)
+            self.assertIn('id="fnref:c"', rendered)
+
+            # Four references to mkbib-1 across this markdown sequence
+            self.assertIn('id="fnref:mkbib-1"', rendered)
+            self.assertIn('id="fnref2:mkbib-1"', rendered)
+            self.assertIn('id="fnref3:mkbib-1"', rendered)
+            self.assertIn('id="fnref4:mkbib-1"', rendered)
+            self.assertIn('id="fnref:mkbib-2"', rendered)
+
+            self.assertIn('id="fn:mkbib-1"', rendered)
+            self.assertIn('id="fn:mkbib-2"', rendered)
+            self.assertIn('href="#fnref4:mkbib-1"', rendered)
+            self.assertIn('<sup class="mkdocs-bibtex-citation-note">Section 1</sup>', rendered)
+
     def test_repeated_identical_cite_blocks_are_all_replaced(self):
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
@@ -315,6 +361,160 @@ class TestPluginBehavior(unittest.TestCase):
             self.assertNotIn(r"\cite{smith2020}", rendered)
             self.assertIn('id="fnref:mkbib-1"', rendered)
             self.assertIn('id="fnref2:mkbib-1"', rendered)
+
+    def test_custom_footnote_format_applies_to_ref_and_bibliography_ids(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            plugin.config["footnote_format"] = "ref-{number}"
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            markdown = r"custom \cite{smith2020}"
+            rendered = self._render_html(plugin, markdown, config)
+
+            self.assertIn('id="fnref:mkbib-ref-1"', rendered)
+            self.assertIn('href="#fn:mkbib-ref-1"', rendered)
+            self.assertIn('id="fn:mkbib-ref-1"', rendered)
+
+    def test_mixed_missing_and_valid_keys_render_only_valid_references(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            with self.assertLogs("mkdocs.plugins.mkdocs-bibtex", level="WARNING") as logs:
+                rendered = self._render_html(
+                    plugin,
+                    r"mixed \cite{missing,smith2020}",
+                    config,
+                )
+
+            self.assertTrue(any("Citation key 'missing' not found" in l for l in logs.output))
+            self.assertIn('class="mkdocs-bibtex-missing-citation"', rendered)
+            self.assertIn('[missing]</span>', rendered)
+            self.assertIn('id="fnref:mkbib-1"', rendered)
+            self.assertIn('id="fn:mkbib-1"', rendered)
+            self.assertNotIn('id="fn:mkbib-2"', rendered)
+
+    def test_unknown_key_renders_visible_missing_marker_in_html(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            rendered = self._render_html(plugin, r"unknown \cite{xxxx}", config)
+
+            self.assertNotIn(r"\cite{xxxx}", rendered)
+            self.assertIn('class="mkdocs-bibtex-missing-citation"', rendered)
+            self.assertIn('style="color: #b00020; font-weight: 600;"', rendered)
+            self.assertIn('[xxxx]</span>', rendered)
+
+    def test_bib_by_default_false_does_not_append_bibliography_without_command(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            plugin.config["bib_by_default"] = False
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            processed = plugin.on_page_markdown(
+                r"no auto bib \cite{smith2020}",
+                page=None,
+                config=config,
+                files=None,
+            )
+
+            self.assertNotIn(r"\cite", processed)
+            self.assertIn("[^mkbib-1]", processed)
+            self.assertNotIn("[^mkbib-1]:", processed)
+
+    def test_manual_bibliography_command_inserts_references_when_auto_disabled(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            plugin.config["bib_by_default"] = False
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            processed = plugin.on_page_markdown(
+                r"manual bib \cite{smith2020}\n\n\bibliography",
+                page=None,
+                config=config,
+                files=None,
+            )
+
+            self.assertNotIn(r"\bibliography", processed)
+            self.assertIn("[^mkbib-1]:", processed)
+            self.assertIn("John Smith.", processed)
+
+    def test_same_note_text_is_rendered_for_each_cite_occurrence(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            mkdocs_file = root / "mkdocs.yml"
+            mkdocs_file.write_text("site_name: Test\n", encoding="utf-8")
+
+            bib_dir = root / "bibliography"
+            bib_dir.mkdir()
+            bib_file = bib_dir / "refs.bib"
+            self._write_sample_bib(bib_file)
+
+            plugin = self._make_plugin(str(bib_dir))
+            config = DummyConfig(str(mkdocs_file))
+            plugin.on_config(config)
+
+            rendered = self._render_html(
+                plugin,
+                r"A \cite[Sec. 1]{smith2020}. B \cite[Sec. 1]{smith2020}.",
+                config,
+            )
+
+            self.assertEqual(
+                rendered.count('<sup class="mkdocs-bibtex-citation-note">Sec. 1</sup>'),
+                2,
+            )
 
     def test_legacy_pandoc_syntax_is_not_processed(self):
         with tempfile.TemporaryDirectory() as tempdir:

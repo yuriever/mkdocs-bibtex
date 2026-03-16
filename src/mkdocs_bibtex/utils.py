@@ -33,6 +33,14 @@ def _render_bibliography_entries(entries):
     return "\n".join(bibliography)
 
 
+def _render_missing_citation_marker(key):
+    """Render a visible inline marker for unknown citation keys in HTML output."""
+    return (
+        '<span class="mkdocs-bibtex-missing-citation" '
+        'style="color: #b00020; font-weight: 600;">[{}]</span>'.format(key)
+    )
+
+
 def format_simple(entries):
     """
     Format bibliography entries using pybtex's plain style.
@@ -115,8 +123,14 @@ def insert_citation_keys(citation_quads, markdown):
     grouped_quads = [list(g) for _, g in groupby(citation_quads, key=lambda x: x[0])]
     for quad_group in grouped_quads:
         full_citation = quad_group[0][0][1]  # the full citation block
-        cite_keys = [quad[2] for quad in quad_group]
-        footnote_refs = "".join(["[^{}]".format(key) for key in cite_keys])
+        replacement_parts = []
+        for quad in quad_group:
+            if quad[2] is None:
+                replacement_parts.append(_render_missing_citation_marker(quad[1]))
+            else:
+                replacement_parts.append("[^{}]".format(quad[2]))
+
+        footnote_refs = "".join(replacement_parts)
 
         suffix = _extract_suffix_from_cite_block(full_citation)
         replacement_citation = footnote_refs
@@ -143,5 +157,5 @@ def format_bibliography(citation_quads):
     Returns:
         str: Markdown-formatted bibliography as a string.
     """
-    new_bib = {quad[2]: quad[3] for quad in citation_quads}
+    new_bib = {quad[2]: quad[3] for quad in citation_quads if quad[2] is not None}
     return _render_bibliography_entries(new_bib)
