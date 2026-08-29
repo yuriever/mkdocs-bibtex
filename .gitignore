@@ -10,3 +10,6 @@ src/mkdocs_bibtex/__pycache__/
 src/mkdocs_bibtex.egg-info/
 __pycache__/
 *.pyc
+
+/.obsidian/
+/.trash/
