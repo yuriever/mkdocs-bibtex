@@ -2,10 +2,26 @@
 
 MkDocs plugin for BibTeX citations and bibliography rendering.
 
+Independently maintained for personal use, derived from [shyamd/mkdocs-bibtex](https://github.com/shyamd/mkdocs-bibtex). The original copyright and license are retained in [LICENSE](LICENSE).
+
 ## Install
 
+Install directly from this repository in the project that uses the plugin:
+
 ```bash
-pip install mkdocs-bibtex
+uv add "mkdocs-bibtex @ git+https://github.com/yuriever/mkdocs-bibtex@master"
+```
+
+The customized [Pybtex](https://github.com/yuriever/pybtex) dependency is pinned to commit `c4b96ac5dbfb6807fc2c9c18e0aff9f40fff47ac` and installed automatically. This preserves the current bibliography formatting, including optional, non-italic journal names. The consuming project's `uv.lock` records the resolved plugin commit.
+
+## Development
+
+From a local checkout:
+
+```bash
+uv sync
+uv run python -m unittest discover -s tests
+uv build
 ```
 
 ## Quick Start
@@ -39,9 +55,9 @@ Then:
 
 Inline citations are rendered as native Markdown footnote references:
 
-- Single citation: one footnote-style reference.
-- Multiple citations: adjacent footnote-style references.
-- Optional notes are rendered after citation refs in superscript note markup.
+* Single citation: one footnote-style reference.
+* Multiple citations: adjacent footnote-style references.
+* Optional notes are rendered after citation refs in superscript note markup.
 
 Citation numbers are coherent with existing Markdown footnotes in the same page.
 
@@ -49,14 +65,13 @@ If a page already contains footnotes (for example `[^a]`), citation numbers cont
 
 By default, citation numbers in inline refs link to entries in the page footnote list.
 
-Unknown citation keys are rendered as visible inline markers (instead of disappearing), so they
-are easy to find in generated HTML.
+Unknown citation keys are rendered as visible inline markers (instead of disappearing), so they are easy to find in generated HTML.
 Example: `\\cite{xxxx}` renders `[xxxx]` with class `mkdocs-bibtex-missing-citation`.
 
 ## Bibliography Commands
 
-- `\bibliography`: Render referenced entries.
-- `\full_bibliography`: Render all loaded entries.
+* `\bibliography`: Render referenced entries.
+* `\full_bibliography`: Render all loaded entries.
 
 If you set `bib_by_default: false`, place `\bibliography` manually where you want it.
 

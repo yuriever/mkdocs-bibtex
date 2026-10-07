@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mkdocs-bibtex"
 version = "2.3.4"
@@ -5,12 +9,19 @@ description = "An MkDocs plugin that enables managing citations with BibTeX"
 readme = "README.md"
 license = { text = "BSD-3-Clause-LBNL" }
 authors = [{ name = "Shyam Dwaraknath", email = "shyamd@lbl.gov" }]
+maintainers = [{ name = "Yurie" }]
 keywords = ["mkdocs", "python", "markdown", "bibtex"]
 requires-python = ">=3.8"
-dependencies = ["mkdocs>=1.6,<2.0", "pybtex"]
+dependencies = [
+    "mkdocs>=1.6,<2.0",
+    "pybtex @ git+https://github.com/yuriever/pybtex@c4b96ac5dbfb6807fc2c9c18e0aff9f40fff47ac",
+]
+
+[project.urls]
+Repository = "https://github.com/yuriever/mkdocs-bibtex"
 
 [project.entry-points."mkdocs.plugins"]
 bibtex = "mkdocs_bibtex.plugin:BibTeXPlugin"
 
-[tool.uv.sources]
-pybtex = { git = "https://github.com/yuriever/pybtex" }
+[tool.setuptools.packages.find]
+where = ["src"]
