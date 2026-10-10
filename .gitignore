@@ -1,14 +1,10 @@
-.vscode
-.DS_Store
-
+# Dependency
 .venv
+
+# Editor configuration
+.vscode
+
+# Build output
 build
 dist
-
-src/mkdocs_bibtex/__pycache__/
 src/mkdocs_bibtex.egg-info/
-__pycache__/
-*.pyc
-
-/.obsidian/
-/.trash/
